@@ -63,8 +63,12 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
         Print("Size of user memory == %lu (%lx) (%lu pages)\n", size,
               size, size / PAGE_SIZE);
 
-    TODO("Allocate memory for the user context");
-
+//  TODO("Allocate memory for the user context");
+    context = (struct User_Context*)Malloc(sizeof(*context));
+    if (context != 0) {
+        context->memory = Malloc(size);
+    }
+//  TODO COM
     if(context == 0 || context->memory == 0)
         goto fail;
 
@@ -83,14 +87,25 @@ extern struct User_Context *Create_User_Context(ulong_t size) {
     if(userDebug)
         Print("Allocated descriptor %d for LDT\n",
               Get_Descriptor_Index(context->ldtDescriptor));
-    TODO("Init LDT descriptor");
-    TODO("Set ldt selector");
-    TODO("Initialize code and data segments within the LDT");
+//  TODO("Init LDT descriptor");
+    Init_LDT_Descriptor(context->ldtDescriptor, context->ldt, NUM_USER_LDT_ENTRIES); // LDT , LDT 's entry num do init LDTdest . NUM_USER_LDT_ENTRIES is 2 in user.h
+//  TODO COM
+
+//  TODO("Set ldt selector");
+    context->ldtSelector = Selector(KERNEL_PRIVILEGE, true, Get_Descriptor_Index(context->ldtDescriptor));
+    // Set ldt Sector => Selector(rpl, segmentIsInGDT, index)  index => use Get_Descriptor_Index (context -> ldtDescripto)
+//  TODO COM
+    
+//  TODO("Initialize code and data segments within the LDT");
+    Init_Code_Segment_Descriptor(&context->ldt[0], (ulong_t)context->memory, size / PAGE_SIZE, USER_PRIVILEGE); // USER_PRIVILEGE = 3
+    Init_Data_Segment_Descriptor(&context->ldt[1], (ulong_t)context->memory, size / PAGE_SIZE, USER_PRIVILEGE);
+//  TODO COM
+
+    context->csSelector = Selector(USER_PRIVILEGE, false, 0);
     context->dsSelector = Selector(USER_PRIVILEGE, false, 1);
 
     /* Nobody is using this user context yet */
     context->refCount = 0;
-
 
     /* Success! */
     return context;
@@ -170,9 +185,27 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength
     ulong_t size, argBlockAddr;
     struct User_Context *userContext = 0;
 
-    TODO("Find maximum virtual address");
+    /*if (exeFormat->numSegments != EXE_MAX_SEGMENTS) {
+        return 0;
+    } exefileData == 0 same code  this part in elf.c exeFormat->numSegments = EXE_MAX_SEGMENTS;*/ 
+    if (exeFileData == 0) {
+        return 0;
+    }
 
-    TODO("Determine size required for argument block");
+//  TODO("Find maximum virtual address");
+    /* Find maximum virtual address */
+    for (i = 0; i < exeFormat->numSegments; ++i) {
+        struct Exe_Segment* segment = &exeFormat->segmentList[i];
+        ulong_t topva = segment->startAddress + segment->sizeInMemory;
+
+        if (topva > maxva)
+            maxva = topva;
+    }
+//  TODO COM
+
+//  TODO("Determine size required for argument block");
+    Get_Argument_Block_Size(command, &numArgs, &argBlockSize); // from argblock.c
+//  TODO COM
 
     /*
      * Now we can determine the size of the memory block needed
@@ -187,13 +220,33 @@ int Load_User_Program(char *exeFileData, ulong_t exeFileLength
     if(userContext == 0)
         return -1;
 
-    TODO("Load segment data into memory");
+//  TODO("Load segment data into memory");
+    /* Load segment data into memory  and virtSpace => context->memory*/
+    for (i = 0; i < exeFormat->numSegments; ++i) {
+        struct Exe_Segment* segment = &exeFormat->segmentList[i];
 
-    TODO("Format argument block");
+        memcpy(userContext->memory + segment->startAddress,
+            exeFileData + segment->offsetInFile,
+            segment->lengthInFile);
+    }
+    
+//  TODO COM
 
-    TODO("Fill in code entry point");
 
-    TODO("Fill in addresses of argument block and stack");
+//  TODO("Format argument block"); 
+    /*Format_Argument_Block from argblock.c*/
+    Format_Argument_Block(userContext->memory + argBlockAddr, numArgs,
+        argBlockAddr, command);
+    //  TODO COM
+
+//  TODO("Fill in code entry point");
+    userContext->entryAddr = exeFormat->entryAddr;
+//  TODO COM
+
+//  TODO("Fill in addresses of argument block and stack");
+    userContext->argBlockAddr = argBlockAddr;
+    userContext->stackPointerAddr = argBlockAddr;
+//  TODO COM
 
     *pUserContext = userContext;
     return 0;

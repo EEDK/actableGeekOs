@@ -325,8 +325,6 @@ static int Sys_GetPID(struct Interrupt_State *state) {
 
 extern struct All_Thread_List s_allThreadList;
 extern struct Thread_Queue s_runQueue;
-
-
 /*
  * Get information about the running processes
  * Params:
@@ -337,9 +335,76 @@ extern struct Thread_Queue s_runQueue;
  *          0 if size of user memory too small
  *          N the number of entries in the table, on success
  */
+
+#define MAX_USER_STRING 50
+#define cpuID 0
+
 static int Sys_PS(struct Interrupt_State *state) {
-    TODO_P(PROJECT_BACKGROUND_JOBS, "Sys_PS system call");
-    return 0;
+    //TODO_P(PROJECT_BACKGROUND_JOBS, "Sys_PS system call");
+
+    struct Process_Info *procInfo = (struct Process_Info *)state->ebx;
+    struct Kernel_Thread *head = (&s_allThreadList)->head;
+    struct Kernel_Thread *runnableQueue = (&s_runQueue)->head;
+
+    int count , length;
+    
+    length = state->ecx;
+
+    for(count = 0; count < length; count++){
+	    if(head->pid == 0)
+	        break;
+        
+        int refc = head->refCount;
+
+
+    	(procInfo + count)->pid = head->pid;                                    //GET PID
+    	(procInfo + count)->parent_pid = (head->owner ? head->owner->pid : 0);  //GET PPID
+    	(procInfo + count)->priority = head->priority;                          //GET PRIO
+
+        if ((refc == 0 && !(head->alive)) || (refc == 1 && !(head->alive))) {   //GET STAT
+            (procInfo + count)->status = 2;
+        }
+
+        else if ((refc == 1 && head->alive) || (refc == 2 && head->alive)) {
+            if ((procInfo + count)->pid == g_currentThreads[cpuID]->pid) {
+                (procInfo + count)->status = 0;
+            }
+            else {
+                (procInfo + count)->status = 1;
+            }
+        }
+
+    	(procInfo + count)->affinity = head->affinity;                          //GET AFF
+    	(procInfo + count)->currCore = cpuID;                                   //GET CORE ( BUT ONLY 0 )
+    	(procInfo + count)->totalTime = head->totalTime;
+
+        if (head->userContext)                                                  //GET COMMAND
+            memcpy((procInfo + count)->name, head->userContext->name, MAX_PROC_NAME_SZB);
+        else
+            memcpy((procInfo + count)->name, head->threadName, MAX_USER_STRING);
+
+	
+        head = head->nextAll_Thread_List;
+    }
+    
+    for(;;){
+        int i;
+	    if(runnableQueue->pid == 0)
+            break;
+	    for(i = 0 ; i < count - 1 ; i++){
+	        if(runnableQueue->pid == (procInfo + i)->pid){
+		        (procInfo + i)->status = 0;
+	        }
+	    }
+	    runnableQueue = runnableQueue->nextThread_Queue;
+    }
+
+    //Dump_All_Thread_List();
+
+    if(Copy_To_User(state->ebx, procInfo, count * sizeof(struct Process_Info)))
+	    return count;
+    else
+	    return -1;
 }
 
 

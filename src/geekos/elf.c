@@ -39,7 +39,49 @@ int elfDebug = 0;
  *   and entry address; to be filled in
  * @return 0 if successful, < 0 on error
  */
-int Parse_ELF_Executable(char *exeFileData, ulong_t exeFileLength,
+/*int Parse_ELF_Executable(char *exeFileData, ulong_t exeFileLength,
                          struct Exe_Format *exeFormat) {
 	TODO("Parse an ELF executable image");
+}*/
+
+int Parse_ELF_Executable(char* exeFileData, ulong_t exeFileLength,
+    struct Exe_Format* exeFormat) {
+
+    elfHeader* ehdr;
+    ehdr = (elfHeader*)exeFileData;
+
+    programHeader* phdr;
+    phdr = (programHeader*)(exeFileData + ehdr->phoff);
+
+
+
+    if (exeFileData == 0) {
+        //Print("exeFileData == 0\n");
+        return ENOTFOUND;
+    }
+
+    if (ehdr->ident[0] != 0x7F || ehdr->ident[1] != 'E' || ehdr->ident[2] != 'L' || ehdr->ident[3] != 'F') {
+        Print("ehdr -> ident is not ELF");
+        return -1;
+    }
+
+    exeFormat->numSegments = EXE_MAX_SEGMENTS;
+    exeFormat->entryAddr = ehdr->entry;
+
+    struct Exe_Segment* segment;
+
+    for (int i = 0; i < EXE_MAX_SEGMENTS; i++) {
+        segment = &exeFormat->segmentList[i];
+        segment->offsetInFile = phdr->offset;
+        segment->lengthInFile = phdr->fileSize;
+        segment->startAddress = phdr->vaddr;
+        segment->sizeInMemory = phdr->memSize;
+        segment->protFlags = phdr->flags;
+
+        phdr = (programHeader*)((char*)phdr + ehdr->phentsize);
+    }
+
+
+    return 0;
+    //TODO("Parse an ELF executable image");
 }

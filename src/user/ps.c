@@ -14,11 +14,56 @@
 #include <conio.h>
 #include <process.h>
 
+char swichingAffinity(int affi){
+	char ret;
+	switch(affi){
+		case -1 :
+		    ret = 'A';
+		    break;
+		default:
+		    ret = affi + '0';
+		    break; 		
+		}
+	return ret;
+}
 
 int main(int argc __attribute__ ((unused)), char **argv
          __attribute__ ((unused))) {
+	int count , length;
+	char stat , core , affinity;
+	
+	struct Process_Info procInfo[50];
 
+	length = PS(procInfo, 50) - 1;
 
-// format string for one process line should be "%3d %4d %4d %2c%2c %3c %4d %s\n"
-    return 1;
+	Print("PID PPID PRIO STAT AFF TIME COMMAND\n");
+	for(count = 0 ; count < length; count++){	
+		switch(procInfo[count].status){
+		case 0 :
+		    core = procInfo[count].currCore + '0';
+		    stat = 'R';
+		    break;
+		case 1 :
+		    core = ' ';
+		    stat = 'B';
+		    break;	
+		default:
+		    core = ' ';
+		    stat = 'Z';
+		    break; 		
+		}
+		affinity = swichingAffinity(procInfo[count].affinity);
+		Print("%3d %4d %4d %2c%2c %3c %4d %s\n" ,
+			procInfo[count].pid,
+			procInfo[count].parent_pid,
+			procInfo[count].priority,
+			core,
+			stat,
+			affinity,
+			procInfo[count].totalTime,
+			procInfo[count].name
+		);
+	}
 }
+
+

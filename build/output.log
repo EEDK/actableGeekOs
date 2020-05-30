@@ -1,15 +1,15 @@
-BSS = 4abfc
+BSS = 4971c
 start kern info = 90000
 Creating kernel heap: start=102000, size=1048576
-527352KB memory detected, 130394 pages in freelist, 1048576 bytes in kernel heap
+527232KB memory detected, 130365 pages in freelist, 1048576 bytes in kernel heap
 Initializing IDT...
 Init_SMP
 Initializing SMP...
 found CPU#0 with APIC id #0
 found IO APIC ID=0 at fec00000
 /Init_SMP
-apic counted down to ffffffcb
-cpu freq = 7801600
+apic counted down to ffffffc3
+cpu freq = 8281600
 Initializing timer...
 Initializing keyboard...
 Initializing DMA Controller...
@@ -20,5 +20,22 @@ the global lock is not held.
 Registering paging device: /c/pagefile.bin on ide0 with 10240 sectors
 Mounted /c filesystem!
 Welcome to GeekOS!
-Spawning init process (/c/a.exe)
-Unimplemented feature: Parse an ELF executable image
+Spawning init process (/c/shell.exe)
+$ long.exe &
+[7]
+$ long.exe &
+[8]
+$ ps.c
+Could not spawn process: No such file or directory
+$ ps
+PID PPID PRIO STAT AFF TIME COMMAND
+  1    0    5    B   A   40 {Main}
+  2    0    0    B   0 1246 {Idle-#0}
+  3    1    5    B   A    0 {Reaper}
+  4    1    5    B   A   85 {IDE}
+  5    1    5    B   A    0 {Alarm}
+  6    1    1    B   A   15 /c/shell.exe
+  7    6    1  0 R   A 8321 /c/long.exe
+  8    6    1  0 R   A 3392 /c/long.exe
+  9    6    1  0 R   A    0 /c/ps.exe
+$ 

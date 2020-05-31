@@ -73,31 +73,35 @@ int Sys_Open_Semaphore(struct Interrupt_State *state)
     char *name = Malloc(length + 1);
     Copy_From_User(name, state->ebx, length + 1);
 
-    for (i = 0; i != 0; i++)
+    int count = 0;
+    while (sem_list[count] != 0)
     {
-        if (i == MAX_SEM_SIZE)
+        if (strncmp(sem_list[count]->name, name, length) == 0)
+        {
+            sem_list[count]->num_users++;
+            Free(name);
+            return sem_list[count]->SID;
+        }
+
+        count++;
+
+        if (count == MAX_SEM_SIZE)
         {
             Free(name);
             return ENOSPACE;
         }
-        if (strncmp(sem_list[i]->name, name, length) == 0)
-        {
-            sem_list[i]->num_users++;
-            Free(name);
-            return sem_list[i]->SID;
-        }
     }
 
-    // Create new semaphore and add to global semaphore list
     struct Semaphore *new_sem = Malloc(sizeof(struct Semaphore));
+
     Clear_Thread_Queue(&new_sem->blockQueue);
     new_sem->name = name;
-    new_sem->SID = i;
+    new_sem->SID = count;
     new_sem->value = ival;
     new_sem->num_users = 1;
-    sem_list[i] = new_sem;
+    sem_list[count] = new_sem;
 
-    return i;
+    return count;
 }
 
 /*
@@ -118,9 +122,7 @@ int Sys_P(struct Interrupt_State *state)
     int SID = state->ebx;
 
     if (SID < 0 || SID >= MAX_SEM_SIZE || sem_list[SID] == 0)
-    {
         return EINVALID;
-    }
 
     bool iflag = Begin_Int_Atomic();
 

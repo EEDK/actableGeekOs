@@ -119,18 +119,22 @@ int Sys_P(struct Interrupt_State *state)
     if (SID < 0 || SID >= MAX_SEM_SIZE || sem_list[SID] == 0)
         return -1;
 
+    if (sem_list[SID]->count <= 0)
+    {
+        Disable_Interrupts();
+        Spin_Lock(&kthreadLock);
+        Wait(&sem_list[SID]->waitQueue);
+        Spin_Unlock(&kthreadLock);
+        Enable_Interrupts();
+        goto done;
+    }
     bool iflag = Begin_Int_Atomic();
 
-    if (sem_list[SID]->count < 0)
-    {
-        Wait(&sem_list[SID]->waitQueue);
-    }
-    else
-    {
-        sem_list[SID]->count -= 1;
-    }
+    sem_list[SID]->count -= 1;
 
     End_Int_Atomic(iflag);
+
+done:
     return 0;
 }
 
@@ -152,19 +156,23 @@ int Sys_V(struct Interrupt_State *state)
     if (SID < 0 || SID >= MAX_SEM_SIZE || sem_list[SID] == 0)
         return -1;
 
-    bool iflag = Begin_Int_Atomic();
-
     if (!Is_Thread_Queue_Empty(&sem_list[SID]->waitQueue))
     {
-        Wake_Up_One(&sem_list[SID]->waitQueue);
+        Disable_Interrupts();
+        Spin_Lock(&kthreadLock);
+        Wake_Up(&sem_list[SID]->waitQueue);
+        Spin_Unlock(&kthreadLock);
+        Enable_Interrupts();
+        goto VDone;
     }
-    else
-    {
-        sem_list[SID]->count += 1;
-    }
+
+    bool iflag = Begin_Int_Atomic();
+
+    sem_list[SID]->count += 1;
 
     End_Int_Atomic(iflag);
 
+VDone:
     return 0;
 }
 

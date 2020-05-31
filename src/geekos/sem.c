@@ -36,7 +36,7 @@ struct Semaphore
     int SID;
     int count;
     int num_users;
-    struct Thread_Queue blockQueue;
+    struct Thread_Queue waitQueue;
 };
 
 static struct Semaphore *sem_list[MAX_SEM_SIZE] = {0};
@@ -63,11 +63,6 @@ int Sys_Open_Semaphore(struct Interrupt_State *state)
         return ENAMETOOLONG;
     }
 
-    // Sys_PrintString Part
-    /*   state->ebx - user pointer of string to be printed
-     *   state->ecx - number of characters to print
-     *   Copy_User_String(state->ebx, length, 1023, (char **)&buf))
-     */
     char *name = Malloc(length + 1);
     Copy_From_User(name, state->ebx, length + 1);
 
@@ -92,7 +87,8 @@ int Sys_Open_Semaphore(struct Interrupt_State *state)
     //Create
 
     struct Semaphore *newSem = Malloc(sizeof(struct Semaphore));
-    Clear_Thread_Queue(&newSem->blockQueue);
+
+    Clear_Thread_Queue(&newSem->waitQueue);
 
     newSem->name = name;
     newSem->SID = i;
@@ -124,10 +120,11 @@ int Sys_P(struct Interrupt_State *state)
         return -1;
 
     bool iflag;
-    iflag = Begin_Int_Atomic();
 
     if (sem_list[SID]->count > 0)
     {
+        iflag = Begin_Int_Atomic();
+
         sem_list[SID]->count -= 1;
         End_Int_Atomic(iflag);
         return 0;
@@ -135,10 +132,9 @@ int Sys_P(struct Interrupt_State *state)
     // Block
     else
     {
-        Wait(&sem_list[SID]->blockQueue);
-
         iflag = Begin_Int_Atomic();
 
+        Wait(&sem_list[SID]->waitQueue);
         sem_list[SID]->count -= 1;
         End_Int_Atomic(iflag);
         return 0;
@@ -167,8 +163,8 @@ int Sys_V(struct Interrupt_State *state)
     iflag = Begin_Int_Atomic();
 
     sem_list[SID]->count += 1;
-    if (!Is_Thread_Queue_Empty(&sem_list[SID]->blockQueue))
-        Wake_Up_One(&sem_list[SID]->blockQueue);
+    if (!Is_Thread_Queue_Empty(&sem_list[SID]->waitQueue))
+        Wake_Up_One(&sem_list[SID]->waitQueue);
 
     End_Int_Atomic(iflag);
 

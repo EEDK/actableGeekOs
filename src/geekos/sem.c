@@ -64,6 +64,7 @@ int Sys_Open_Semaphore(struct Interrupt_State *state)
     {
         return ENAMETOOLONG;
     }
+
     char *name = Malloc(length + 1);
     Copy_From_User(name, state->ebx, length + 1);
 
@@ -122,10 +123,9 @@ int Sys_P(struct Interrupt_State *state)
 
     if (semlist[SID].count < 0)
     {
-        End_Int_Atomic(iflag);
-
         Wait(&semlist[SID].waitQueue);
     }
+
     End_Int_Atomic(iflag);
 
     return 0;
@@ -150,6 +150,7 @@ int Sys_V(struct Interrupt_State *state)
         return EINVALID;
 
     bool iflag = Begin_Int_Atomic();
+
     semlist[SID].count += 1;
 
     if (!Is_Thread_Queue_Empty(&semlist[SID].waitQueue))
@@ -176,7 +177,7 @@ int Sys_Close_Semaphore(struct Interrupt_State *state)
     return EUNSUPPORTED;*/
 
     int SID = state->ebx;
-    if (SID < 0 || SID >= MAX_SEM_SIZE || &semlist[SID] == 0)
+    if (SID < 0 || SID >= MAX_SEM_SIZE || semlist[SID].name == 0)
         return -1;
 
     bool iflag = Begin_Int_Atomic();
@@ -186,8 +187,9 @@ int Sys_Close_Semaphore(struct Interrupt_State *state)
     if (semlist[SID].num_users == 0)
     {
         Free(semlist[SID].name);
-        semlist[SID].SID = 0;
+        semlist[SID].name = 0;
     }
+
     End_Int_Atomic(iflag);
 
     return 0;

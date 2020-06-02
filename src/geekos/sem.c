@@ -41,7 +41,7 @@ struct Semaphore
     struct Thread_Queue waitQueue;
 };
 
-static struct Semaphore semlist[MAX_SEM_SIZE];
+static struct Semaphore semlist[MAX_SEM_SIZE] = {0};
 
 /*
  * Create or find a semaphore.
@@ -88,15 +88,11 @@ int Sys_Open_Semaphore(struct Interrupt_State *state)
 
     //Create
 
-    struct Semaphore *newSem = Malloc(sizeof(struct Semaphore));
-
-    Clear_Thread_Queue(&newSem->waitQueue);
-
-    newSem->name = name;
-    newSem->SID = i;
-    newSem->count = ival;
-    newSem->num_users = 1;
-    semlist[i] = *newSem;
+    Clear_Thread_Queue(&semlist[i].waitQueue);
+    semlist[i].name = name;
+    semlist[i].SID = i;
+    semlist[i].count = ival;
+    semlist[i].num_users = 1;
 
     return i;
 }
@@ -187,7 +183,7 @@ int Sys_Close_Semaphore(struct Interrupt_State *state)
     return EUNSUPPORTED;*/
 
     int SID = state->ebx;
-    if (SID < 0 || SID >= MAX_SEM_SIZE || semlist[SID].SID == 0)
+    if (SID < 0 || SID >= MAX_SEM_SIZE || &semlist[SID] == 0)
         return -1;
 
     semlist[SID].num_users--;
@@ -196,6 +192,7 @@ int Sys_Close_Semaphore(struct Interrupt_State *state)
     {
         Free(semlist[SID].name);
         Free(&semlist[SID]);
+
         semlist[SID].SID = 0;
     }
 

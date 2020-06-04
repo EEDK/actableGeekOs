@@ -34,8 +34,6 @@ struct Semaphore
 {
     int SID;
     int count;
-    int num_users;
-
     char *name;
     struct Thread_Queue waitQueue;
 };
@@ -73,7 +71,6 @@ int Sys_Open_Semaphore(struct Interrupt_State *state)
     {
         if (strcmp(semlist[i].name, name) == 0)
         {
-            semlist[i].num_users++;
             Free(name);
             return semlist[i].SID;
         }
@@ -89,7 +86,6 @@ int Sys_Open_Semaphore(struct Interrupt_State *state)
     //Create
     semlist[i].SID = i;
     semlist[i].count = ival;
-    semlist[i].num_users = 1;
 
     semlist[i].name = name;
     Clear_Thread_Queue(&semlist[i].waitQueue);
@@ -182,13 +178,8 @@ int Sys_Close_Semaphore(struct Interrupt_State *state)
 
     bool iflag = Begin_Int_Atomic();
 
-    semlist[SID].num_users--;
-
-    if (semlist[SID].num_users == 0)
-    {
-        Free(semlist[SID].name);
-        semlist[SID].name = 0;
-    }
+    Free(semlist[SID].name);
+    semlist[SID].name = 0;
 
     End_Int_Atomic(iflag);
 
